@@ -1,0 +1,80 @@
+---
+title: "sensorMap"
+author: "Antonio J Perez-Luque"
+date: "07/09/2017"
+output: 
+  flexdashboard::flex_dashboard:
+    vertical_layout: fill
+    orientation: rows
+---
+
+```{r setup, include=FALSE}
+library('flexdashboard')
+```
+
+```{r pacakges, message=FALSE, warning=FALSE}
+library('rgdal')
+library("leaflet") 
+library("sp")
+library("raster")
+library("tidyverse")
+```
+
+```{r readDATA} 
+# Read and prepare data 
+# --  spatial_layers 
+## Q_pyrenaica distribution 
+qp <- rgdal::readOGR(dsn=paste0(getwd(), '/data/geoinfo/'),
+                    layer = 'q_pyr_sn_4326', verbose = FALSE, encoding = "UTF-8")
+
+## LIFE-ADAPTAMED C6 plots 
+c6 <- rgdal::readOGR(dsn=paste0(getwd(), '/data/geoinfo/'),
+                     layer = '20160418_C6_PAR_ACTUACIONES', 
+                     verbose = FALSE, encoding = "UTF-8")
+
+c6_canar <- subset(c6, Rodal == 'CANAR')
+
+c6sub <- rgdal::readOGR(dsn=paste0(getwd(),'/data/geoinfo/'),
+                     layer = '20160418_C6_PAR_RESIDUOS', 
+                     verbose = FALSE, encoding = "UTF-8")
+
+c6sub_canar <- subset(c6sub, LOCALIDAD == 'CANAR')
+
+# -- sensor field geo-location 
+
+```
+
+
+
+
+```{r}
+# Set spatial extension 
+myext <- extent(c6_canar)
+
+mymap <- leaflet() %>%
+  fitBounds(myext@xmin, myext@ymin, myext@xmax, myext@ymax) %>% 
+  addProviderTiles("Esri.WorldImagery", group='Satellite') %>%
+  addWMSTiles('http://www.ideandalucia.es/wms/mdt_2005?',
+              layers = 'Sombreado_10',
+              options = WMSTileOptions(format = "image/png", transparent = TRUE),
+              attribution = '<a href="http://www.juntadeandalucia.es/institutodeestadisticaycartografia" target="_blank">Instituto de Estadística y Cartografía de Andalucía</a>', 
+              group = 'Hillshade') %>% 
+  addTiles(urlTemplate = "http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+           attribution = '<a href="https://carto.com/attributions">CARTO</a>',
+           group = 'Basemap') %>%
+
+  addWMSTiles('http://www.ideandalucia.es/services/toporaster10/wms?',
+              layers = 'toporaster10',
+              options = WMSTileOptions(format = "image/png", transparent = FALSE),
+              attribution = '<a href="http://www.juntadeandalucia.es/institutodeestadisticaycartografia" target="_blank">Instituto de Estadística y Cartografía de Andalucía</a>',
+              group = 'Topographical') %>%
+
+  
+
+  # Layers control
+  addLayersControl(position = 'bottomright',
+                   baseGroups = c("Satellite", "Hillshade", "Basemap", "Topographical"),
+                   overlayGroups = c('Sensores', 'Repetidores','Parcelas C6', 
+                                     'Subparcelas'),
+                   options = layersControlOptions(collapsed = TRUE))
+
