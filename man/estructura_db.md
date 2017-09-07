@@ -4,8 +4,6 @@ Aqui se describe una propuesta para la estructura de la base de datos. De esta f
 
 ![](/img/schema_db.png)
 
-* Tablas para la base de datos y para la visualización 
-
 ### `spatial_sensor` 
 Tabla de información espacial, con los siguientes atributos
 
@@ -30,20 +28,18 @@ Cada uno de los terminales tiene varios sensores (uno mide la humedad y temperat
 
 * `id_sensor`: identificador
 * `terminal`: identificador del terminal en el que está el sensor 
-* `microhabitat`: factor que indica el microhábitat, con varios niveles: `profundidad`, `superficie`, `bajo roca`, `45 cm sobre el suelo`, etc (:red_circle: tenemos que definirlo)
+* `microhabitat`: viene del diccionario de microhábitats
 
 ### `dicc_variables`
 Diccionario de variables a medir: 
 * `id_variable`: identificador
 * `codeVariable`: código de la variable (air_temp, air_humidity, soil_moisture, soil_temp) :red_circle: por determinar. 
-* `descVariable: nombre de la variable (algo mas descriptivo)
+* `descVariable`: nombre de la variable (algo mas descriptivo)
 * `EnvThes`: código del tesauro de la variable (ver LTER, o USLTER)
 
 ### `dicc_microhábitats`
-* `id_variable`: identificador
-* `codeVariable`: código de la variable (air_temp, air_humidity, soil_moisture, soil_temp) :red_circle: por determinar. 
-* `descVariable: nombre de la variable (algo mas descriptivo)
-* `EnvThes`: código del tesauro de la variable (ver LTER, o USLTER)
+* `id_microhabitat`: identificador
+* `microhabitat`: factor que indica el microhábitat, con varios niveles: `profundidad`, `superficie`, `bajo roca`, `45 cm sobre el suelo`, etc (:red_circle: tenemos que definirlo)
 
 ### `sensores_valores`
 tabla para almacenar los valores que toma el sensor 
@@ -53,15 +49,4 @@ tabla para almacenar los valores que toma el sensor
 * `variable: nombre de la variable (viene del diccionario `variables`)
 * `dateTime`: fecha y hora en la que el sensor mide la variable
 * `value`: valor de la variable 
-
-
-
-
-
-
-* `id`
-* `terminal`: identificador del terminal (i.e.: `A136`)
-* `id_spatial`: código de identificación de la localización espacial, para relacionar ambas tablas. 
-
-
 
