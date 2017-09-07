@@ -41,6 +41,44 @@ c6sub <- rgdal::readOGR(dsn=paste0(getwd(),'/data/geoinfo/'),
 c6sub_canar <- subset(c6sub, LOCALIDAD == 'CANAR')
 
 # -- sensor field geo-location 
+balizas <- read.csv(paste0(getwd(), '/data/db_sensores_spatial_sensor.csv'),
+                         header=TRUE, encoding = 'UTF-8', sep=',')
+terminales <- read.csv(paste0(getwd(), '/data/db_sensores_terminales.csv'),
+                         header=TRUE, encoding = 'UTF-8', sep=',')
+
+
+
+tt <- terminales %>% dplyr::select(-id_terminal)
+
+stocks <- data.frame(
+  time = as.Date('2009-01-01') + 0:9,
+  X = rnorm(10, 0, 1),
+  Y = rnorm(10, 0, 2),
+  Z = rnorm(10, 0, 4)
+)
+
+
+
+tt <- left_join(balizas, tt, by='id_spatial')
+
+tt <- terminales %>% dplyr::select(-id_terminal)
+
+
+
+terminales %>% spread(id_terminal,sensors, convert=TRUE) %>% 
+terminales 
+
+terminales
+
+
+
+%>% 
+  unite(temp, variable) %>% 
+  group_by(temp) %>% 
+  mutate(id=1:n()) %>% 
+  spread(temp, value) %>% select() 
+
+
 
 ```
 
