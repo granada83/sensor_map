@@ -21,67 +21,56 @@ library("tidyverse")
 ```
 
 ```{r readDATA} 
+
+di <- '/home/iecolab/sensores/sensor_map'
+
+
 # Read and prepare data 
 # --  spatial_layers 
 ## Q_pyrenaica distribution 
-qp <- rgdal::readOGR(dsn=paste0(getwd(), '/data/geoinfo/'),
+qp <- rgdal::readOGR(dsn=paste0(di, '/data/geoinfo/'),
                     layer = 'q_pyr_sn_4326', verbose = FALSE, encoding = "UTF-8")
 
 ## LIFE-ADAPTAMED C6 plots 
-c6 <- rgdal::readOGR(dsn=paste0(getwd(), '/data/geoinfo/'),
+c6 <- rgdal::readOGR(dsn=paste0(di, '/data/geoinfo/'),
                      layer = '20160418_C6_PAR_ACTUACIONES', 
                      verbose = FALSE, encoding = "UTF-8")
 
 c6_canar <- subset(c6, Rodal == 'CANAR')
 
-c6sub <- rgdal::readOGR(dsn=paste0(getwd(),'/data/geoinfo/'),
+c6sub <- rgdal::readOGR(dsn=paste0(di, '/data/geoinfo/'),
                      layer = '20160418_C6_PAR_RESIDUOS', 
                      verbose = FALSE, encoding = "UTF-8")
 
 c6sub_canar <- subset(c6sub, LOCALIDAD == 'CANAR')
 
 # -- sensor field geo-location 
-balizas <- read.csv(paste0(getwd(), '/data/db_sensores_spatial_sensor.csv'),
+balizas <- read.csv(paste0(di, '/data/db_sensores_spatial_sensor.csv'),
                          header=TRUE, encoding = 'UTF-8', sep=',')
-terminales <- read.csv(paste0(getwd(), '/data/db_sensores_terminales.csv'),
+terminales <- read.csv(paste0(di, '/data/db_sensores_terminales.csv'),
                          header=TRUE, encoding = 'UTF-8', sep=',')
 
-
-
-tt <- terminales %>% dplyr::select(-id_terminal)
-
-stocks <- data.frame(
-  time = as.Date('2009-01-01') + 0:9,
-  X = rnorm(10, 0, 1),
-  Y = rnorm(10, 0, 2),
-  Z = rnorm(10, 0, 4)
-)
-
-
-
-tt <- left_join(balizas, tt, by='id_spatial')
-
-tt <- terminales %>% dplyr::select(-id_terminal)
-
-
-
-terminales %>% spread(id_terminal,sensors, convert=TRUE) %>% 
-terminales 
-
-terminales
-
-
-
-%>% 
-  unite(temp, variable) %>% 
-  group_by(temp) %>% 
+t2 <- terminales %>% 
+  dplyr::select(-id_terminal) %>% 
+  gather(variable, value, -(id_spatial)) %>% 
+  group_by(id_spatial) %>% 
   mutate(id=1:n()) %>% 
-  spread(temp, value) %>% select() 
+  unite(variable, variable, id) %>% 
+  spread(variable, value) %>% as.data.frame() %>% 
+  rename(terminal_1 = sensors_1, 
+         terminal_2 = sensors_2)
+
+senso <- balizas %>% inner_join(t2, by='id_spatial')
 
 
+senso_sp <- SpatialPointsDataFrame(coords = senso[,c('long','lat')], data = senso,
+                               proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
 
+# Create subset (TODO: improve it)
+senso_robledal <- subset(senso_sp, habitat == 'Robledal')
+senso_claro <- subset(senso_sp, habitat == 'Claro')
+senso_piornal <- subset(senso_sp, habitat == 'Piornal')
 ```
-
 
 
 
@@ -90,29 +79,88 @@ terminales
 myext <- extent(c6_canar)
 
 mymap <- leaflet() %>%
-  fitBounds(myext@xmin, myext@ymin, myext@xmax, myext@ymax) %>% 
-  addProviderTiles("Esri.WorldImagery", group='Satellite') %>%
+  fitBounds(myext@xmin, myext@ymin, myext@xmax, myext@ymax) %>%
+  addWMSTiles('http://www.ideandalucia.es/wms/mta10v_2007?',
+              layers = 'curvas',
+              options = WMSTileOptions(format = "image/png", transparent = TRUE, maxZoom = 25),
+              attribution = '<a href="http://www.juntadeandalucia.es/institutodeestadisticaycartografia" target="_blank">Instituto de Estadística y Cartografía de Andalucía</a>',
+              group = 'Curvas de nivel') %>%
+  addProviderTiles("Esri.WorldImagery", group='Satellite',
+                   options = providerTileOptions(maxZoom = 20)) %>%
+  # Hillshade 
   addWMSTiles('http://www.ideandalucia.es/wms/mdt_2005?',
               layers = 'Sombreado_10',
-              options = WMSTileOptions(format = "image/png", transparent = TRUE),
+              options = WMSTileOptions(format = "image/png", transparent = TRUE, maxZoom = 25),
               attribution = '<a href="http://www.juntadeandalucia.es/institutodeestadisticaycartografia" target="_blank">Instituto de Estadística y Cartografía de Andalucía</a>', 
-              group = 'Hillshade') %>% 
-  addTiles(urlTemplate = "http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-           attribution = '<a href="https://carto.com/attributions">CARTO</a>',
-           group = 'Basemap') %>%
-
-  addWMSTiles('http://www.ideandalucia.es/services/toporaster10/wms?',
+              group = 'Hillshade') %>%
+    addWMSTiles('http://www.ideandalucia.es/services/toporaster10/wms?',
               layers = 'toporaster10',
-              options = WMSTileOptions(format = "image/png", transparent = FALSE),
+              options = WMSTileOptions(format = "image/png", transparent = FALSE, maxZoom = 25),
               attribution = '<a href="http://www.juntadeandalucia.es/institutodeestadisticaycartografia" target="_blank">Instituto de Estadística y Cartografía de Andalucía</a>',
-              group = 'Topographical') %>%
+             group = 'Topographical') %>% 
 
-  
-
-  # Layers control
+    # Layers control
   addLayersControl(position = 'bottomright',
-                   baseGroups = c("Satellite", "Hillshade", "Basemap", "Topographical"),
-                   overlayGroups = c('Sensores', 'Repetidores','Parcelas C6', 
-                                     'Subparcelas'),
+                   baseGroups = c("Satellite","Curvas de nivel", "Hillshade", "Topographical"),
+                   overlayGroups = c('Bosque','Claro','Piornal','Parcelas C6', 
+                                     'Subparcelas', 'Distribucion Q. pyrenaica'),
                    options = layersControlOptions(collapsed = TRUE))
+
+```
+
+
+Distribution map
+=======================================================================
+
+```{r}
+popup_c6 <- paste0("<strong>Tratamiento:</strong> ", c6_canar$Tratamnto)
+popup_c6sub <- paste0("<strong>Parcela id:</strong> ", c6sub_canar$PARCELA,
+                   "<br><strong>Name:</strong> ", c6sub_canar$TRATAM.)
+
+popup_senso_claro<- paste0("<strong>Habitat:</strong> ", senso_claro$habitat,
+                           "<br><strong>Replica:</strong> ", senso_claro$replica,
+                           "<br><strong>Cota:</strong> ", senso_claro$cota,
+                    "<br><strong>Terminal_1:</strong> ", senso_claro$terminal_1,
+                    "<br><strong>Terminal_2:</strong> ", senso_claro$terminal_2)
+
+popup_senso_robledal <- paste0("<strong>Habitat:</strong> ", senso_robledal$habitat,
+                               "<br><strong>Replica:</strong> ", senso_robledal$replica,
+                               "<br><strong>Cota:</strong> ", senso_robledal$cota,
+                               "<br><strong>Terminal_1:</strong> ", senso_robledal$terminal_1,
+                               "<br><strong>Terminal_2:</strong> ", senso_robledal$terminal_2)
+
+popup_senso_piornal <- paste0("<strong>Habitat:</strong> ", senso_piornal$habitat,
+                               "<br><strong>Replica:</strong> ", senso_piornal$replica,
+                              "<br><strong>Cota:</strong> ", senso_piornal$cota,
+                              "<br><strong>Terminal_1:</strong> ", senso_piornal$terminal_1,
+                              "<br><strong>Terminal_2:</strong> ", senso_piornal$terminal_2)
+                    
+
+mymap %>% 
+  addPolygons(data = c6_canar,
+              group = 'Parcelas C6',
+              fillColor = 'green', fillOpacity = 0.4, color = 'green', 
+                stroke = TRUE, popup = popup_c6) %>% 
+  addPolygons(data = c6sub_canar,
+                group= 'Subparcelas',
+                fillColor = 'red', fillOpacity = 0.4, 
+                stroke = FALSE, popup = popup_c6sub) %>%
+  addPolygons(data = qp,
+              group='Distribucion Q. pyrenaica',
+                fillColor = 'brown', fillOpacity = 0.4, 
+                stroke = FALSE) %>% 
+  addCircles(senso_claro,
+             lng=coordinates(senso_claro)[,'long'],
+             lat=coordinates(senso_claro)[,'lat'],
+             group='Claro', radius=5, color = 'blue', popup = popup_senso_claro) %>%
+  addCircles(senso_robledal,
+             lng=coordinates(senso_robledal)[,'long'],
+             lat=coordinates(senso_robledal)[,'lat'],
+             group='Bosque', radius=5, color = 'red', popup = popup_senso_robledal) %>% 
+  addCircles(senso_piornal,
+             lng=coordinates(senso_piornal)[,'long'],
+             lat=coordinates(senso_piornal)[,'lat'],
+             group='Bosque', radius=5, color = 'white', popup = popup_senso_piornal)
+
+```
 
